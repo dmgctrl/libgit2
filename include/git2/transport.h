@@ -84,7 +84,6 @@ GIT_EXTERN(int) git_cred_userpass_plaintext_new(
 	const char *username,
 	const char *password);
 
-#ifdef GIT_SSH
 /**
  * Creates a new ssh key file and passphrase credential object.
  * The supplied credential parameter will be internally duplicated.
@@ -116,9 +115,8 @@ GIT_EXTERN(int) git_cred_ssh_publickey_new(
 	git_cred **out,
 	const char *publickey,
     size_t publickey_len,
-    git_cred_sign_callback,
+    void* git_cred_sign_callback,
     void *sign_data);
-#endif
 
 /**
  * Signature of a function which acquires a credential object.
