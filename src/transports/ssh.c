@@ -51,7 +51,7 @@ static int gen_proto(git_buf *request, const char *cmd, const char *url)
 		url = url + strlen(prefix_ssh);
 		repo = strchr(url, '/');
 	} else {
-		repo = strchr(url, ':');
+		repo = strchr(url, ':') + 1;
 	}
 	
 	if (!repo) {
