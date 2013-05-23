@@ -133,7 +133,7 @@ int git_cred_ssh_publickey_new(
 	git_cred **cred,
 	const char *publickey,
     size_t publickey_len,
-	LIBSSH2_USERAUTH_PUBLICKEY_SIGN_FUNC((*sign_callback)),
+	void *sign_callback,
     void *sign_data)
 {
 	git_cred_ssh_publickey *c;
