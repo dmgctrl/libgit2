@@ -26,9 +26,9 @@ GIT_BEGIN_DECL
 
 typedef enum {
 	/* git_cred_userpass_plaintext */
-	GIT_CREDTYPE_USERPASS_PLAINTEXT = 1,
-	GIT_CREDTYPE_SSH_KEYFILE_PASSPHRASE = 2,
-	GIT_CREDTYPE_SSH_PUBLICKEY = 3,
+	GIT_CREDTYPE_USERPASS_PLAINTEXT = 1 << 0,
+	GIT_CREDTYPE_SSH_KEYFILE_PASSPHRASE = 1 << 1,
+	GIT_CREDTYPE_SSH_PUBLICKEY = 1 << 2,
 } git_credtype_t;
 
 /* The base structure for all credential types */
