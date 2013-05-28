@@ -11,10 +11,6 @@
 #include "net.h"
 #include "types.h"
 
-#ifdef GIT_SSH
-#include <libssh2.h>
-#endif
-
 /**
  * @file git2/transport.h
  * @brief Git transport interfaces and functions
@@ -49,9 +45,6 @@ typedef struct git_cred_userpass_plaintext {
 	char *password;
 } git_cred_userpass_plaintext;
 
-#ifdef GIT_SSH
-typedef LIBSSH2_USERAUTH_PUBLICKEY_SIGN_FUNC((*git_cred_sign_callback));
-
 /* A ssh key file and passphrase */
 typedef struct git_cred_ssh_keyfile_passphrase {
 	git_cred parent;
@@ -68,7 +61,6 @@ typedef struct git_cred_ssh_publickey {
 	void *sign_callback;
 	void *sign_data;
 } git_cred_ssh_publickey;
-#endif
 
 /**
  * Creates a new plain-text username and password credential object.
