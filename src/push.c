@@ -309,9 +309,14 @@ static int revwalk(git_vector *commits, git_push *push)
 
 			error = git_merge_base(&base, push->repo,
 					       &spec->loid, &spec->roid);
+			if (error == GIT_ENOTFOUND) {
+				giterr_set(GITERR_REFERENCE,
+					"Cannot push non-fastforwardable reference");
+				error = GIT_ENONFASTFORWARD;
+				goto on_error;
+			}
 
-			if (error == GIT_ENOTFOUND ||
-				(!error && !git_oid_equal(&base, &spec->roid))) {
+			if ((!error && !git_oid_equal(&base, &spec->roid))) {
 				spec->rejected = true;
 			}
 
