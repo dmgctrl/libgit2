@@ -842,7 +842,7 @@ int git_smart__push(git_transport *transport, git_push *push)
 	 * cases except when we only send delete commands
 	 */
 	git_vector_foreach(&push->specs, i, spec) {
-		if (spec->lref) {
+		if (!spec->rejected && spec->lref) {
 			need_pack = 1;
 			break;
 		}

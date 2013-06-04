@@ -293,8 +293,7 @@ static int revwalk(git_vector *commits, git_push *push)
 				}
 			}
 			git_object_free(target);
-		} else if (git_revwalk_push(rw, &spec->loid) < 0)
-			goto on_error;
+		} 
 
 		if (!spec->force) {
 			git_oid base;
@@ -313,15 +312,15 @@ static int revwalk(git_vector *commits, git_push *push)
 
 			if (error == GIT_ENOTFOUND ||
 				(!error && !git_oid_equal(&base, &spec->roid))) {
-				giterr_set(GITERR_REFERENCE,
-					"Cannot push non-fastforwardable reference");
-				error = GIT_ENONFASTFORWARD;
-				goto on_error;
+				spec->rejected = true;
 			}
 
 			if (error < 0)
 				goto on_error;
 		}
+        
+        if (!spec->rejected && git_revwalk_push(rw, &spec->loid) < 0)
+			goto on_error;
 	}
 
 	git_vector_foreach(&push->remote->refs, i, head) {

@@ -17,6 +17,7 @@ typedef struct push_spec {
 	git_oid roid;
 
 	bool force;
+	bool rejected;
 } push_spec;
 
 typedef struct push_status {
