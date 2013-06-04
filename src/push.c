@@ -544,6 +544,37 @@ static int calculate_work(git_push *push)
 	return 0;
 }
 
+static int filter_rejected_refs(git_push *push)
+{
+    int error = 0;
+    bool need_update;
+    
+	git_vector filtered_specs;
+    if ((error = git_vector_init(&filtered_specs, 0, push_spec_rref_cmp)) < 0) {
+		return error;
+	}
+    
+    push_spec *spec;
+	unsigned int i;
+    git_vector_foreach(&push->specs, i, spec) {
+        if (!need_update && spec->rejected) {
+            need_update = true;
+        } else {
+            if((error = git_vector_insert(&filtered_specs, spec)) < 0) {
+                git_vector_free(&filtered_specs);
+                return error;
+            }
+        }
+    }
+    
+    if (need_update) {
+        git_vector_free(&push->specs);
+        push->specs = filtered_specs;
+    }
+    
+    return 0;
+}
+
 static int do_push(git_push *push)
 {
 	int error;
@@ -568,8 +599,9 @@ static int do_push(git_push *push)
 
 	if ((error = calculate_work(push)) < 0 ||
 		(error = queue_objects(push)) < 0 ||
-		(error = transport->push(transport, push)) < 0)
-		goto on_error;
+        (error = filter_rejected_refs(push)) < 0 ||
+        (error = transport->push(transport, push)) < 0)
+        goto on_error;
 
 	error = 0;
 
