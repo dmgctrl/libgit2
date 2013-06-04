@@ -570,6 +570,8 @@ static int filter_rejected_refs(git_push *push)
     if (need_update) {
         git_vector_free(&push->specs);
         push->specs = filtered_specs;
+    } else {
+        git_vector_free(&filtered_specs);
     }
     
     return 0;
