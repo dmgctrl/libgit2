@@ -122,6 +122,8 @@ static int parse_refspec(git_push *push, push_spec **spec, const char *str)
 	s = git__calloc(1, sizeof(*s));
 	GITERR_CHECK_ALLOC(s);
 
+    s->spec_type = SPECTYPE_NORMAL;
+    
 	if (str[0] == '+') {
 		s->spec_type = SPECTYPE_FORCED;
 		str++;
@@ -322,6 +324,7 @@ static int revwalk(git_vector *commits, git_push *push)
 
 			if ((!error && !git_oid_equal(&base, &spec->roid))) {
 				spec->spec_type = SPECTYPE_REJECTED;
+                spec_type = spec->spec_type;
 			}
 
 			if (error < 0)
@@ -551,7 +554,6 @@ static int calculate_work(git_push *push)
 static int filter_rejected_refs(git_push *push)
 {
     int error = 0;
-    bool need_update;
     
 	git_vector filtered_specs;
     if ((error = git_vector_init(&filtered_specs, 0, push_spec_rref_cmp)) < 0) {
@@ -563,9 +565,7 @@ static int filter_rejected_refs(git_push *push)
 	unsigned int i;
     git_vector_foreach(&push->specs, i, spec) {
         spec_type = spec->spec_type;
-        if (spec_type == SPECTYPE_REJECTED || spec_type == SPECTYPE_UNCHANGED) {
-            need_update = true;
-        } else {
+        if (spec_type == SPECTYPE_NORMAL || spec_type == SPECTYPE_FORCED) {
             if((error = git_vector_insert(&filtered_specs, spec)) < 0) {
                 git_vector_free(&filtered_specs);
                 return error;
@@ -573,7 +573,7 @@ static int filter_rejected_refs(git_push *push)
         }
     }
     
-    if (need_update) {
+    if (filtered_specs.length > 0) {
         git_vector_free(&push->specs);
         push->specs = filtered_specs;
     } else {
