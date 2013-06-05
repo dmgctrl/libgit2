@@ -9,6 +9,13 @@
 
 #include "git2.h"
 
+typedef enum {
+    SPECTYPE_NORMAL,
+	SPECTYPE_FORCED,
+	SPECTYPE_REJECTED,
+	SPECTYPE_UNCHANGED,
+} push_spec_t;
+
 typedef struct push_spec {
 	char *lref;
 	char *rref;
@@ -16,8 +23,7 @@ typedef struct push_spec {
 	git_oid loid;
 	git_oid roid;
 
-	bool force;
-	bool rejected;
+	push_spec_t spec_type;
 } push_spec;
 
 typedef struct push_status {
