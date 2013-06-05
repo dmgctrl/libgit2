@@ -293,8 +293,7 @@ static int revwalk(git_vector *commits, git_push *push)
 				}
 			}
 			git_object_free(target);
-		} else if (git_revwalk_push(rw, &spec->loid) < 0)
-			goto on_error;
+		} 
 
 		if (!spec->force) {
 			git_oid base;
@@ -310,18 +309,23 @@ static int revwalk(git_vector *commits, git_push *push)
 
 			error = git_merge_base(&base, push->repo,
 					       &spec->loid, &spec->roid);
-
-			if (error == GIT_ENOTFOUND ||
-				(!error && !git_oid_equal(&base, &spec->roid))) {
+			if (error == GIT_ENOTFOUND) {
 				giterr_set(GITERR_REFERENCE,
 					"Cannot push non-fastforwardable reference");
 				error = GIT_ENONFASTFORWARD;
 				goto on_error;
 			}
 
+			if ((!error && !git_oid_equal(&base, &spec->roid))) {
+				spec->rejected = true;
+			}
+
 			if (error < 0)
 				goto on_error;
 		}
+        
+        if (!spec->rejected && git_revwalk_push(rw, &spec->loid) < 0)
+			goto on_error;
 	}
 
 	git_vector_foreach(&push->remote->refs, i, head) {
@@ -540,6 +544,39 @@ static int calculate_work(git_push *push)
 	return 0;
 }
 
+static int filter_rejected_refs(git_push *push)
+{
+    int error = 0;
+    bool need_update;
+    
+	git_vector filtered_specs;
+    if ((error = git_vector_init(&filtered_specs, 0, push_spec_rref_cmp)) < 0) {
+		return error;
+	}
+    
+    push_spec *spec;
+	unsigned int i;
+    git_vector_foreach(&push->specs, i, spec) {
+        if (!need_update && spec->rejected) {
+            need_update = true;
+        } else {
+            if((error = git_vector_insert(&filtered_specs, spec)) < 0) {
+                git_vector_free(&filtered_specs);
+                return error;
+            }
+        }
+    }
+    
+    if (need_update) {
+        git_vector_free(&push->specs);
+        push->specs = filtered_specs;
+    } else {
+        git_vector_free(&filtered_specs);
+    }
+    
+    return 0;
+}
+
 static int do_push(git_push *push)
 {
 	int error;
@@ -564,8 +601,9 @@ static int do_push(git_push *push)
 
 	if ((error = calculate_work(push)) < 0 ||
 		(error = queue_objects(push)) < 0 ||
-		(error = transport->push(transport, push)) < 0)
-		goto on_error;
+        (error = filter_rejected_refs(push)) < 0 ||
+        (error = transport->push(transport, push)) < 0)
+        goto on_error;
 
 	error = 0;
 

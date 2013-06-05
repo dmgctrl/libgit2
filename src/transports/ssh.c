@@ -125,13 +125,17 @@ static int ssh_stream_write(
 	
 	if (!s->sent_command && send_command(s) < 0)
 		return -1;
-	
-	int rc = libssh2_channel_write(s->channel, buffer, len);
-	if (rc < 0) {
-		return -1;
+
+	size_t bytes_written = 0;
+	while (bytes_written < len) {
+		int rc = libssh2_channel_write(s->channel, buffer + bytes_written, len - bytes_written);
+		if (rc < 0) {
+			return -1;
+		}
+		bytes_written += rc;
 	}
 	
-	return rc;
+	return 0;
 }
 
 static void ssh_stream_free(git_smart_subtransport_stream *stream)
