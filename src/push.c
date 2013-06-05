@@ -304,31 +304,30 @@ static int revwalk(git_vector *commits, git_push *push)
 		if (spec_type != SPECTYPE_FORCED) {
 			git_oid base;
 
-			if (git_oid_iszero(&spec->roid))
-				continue;
-
-			if (!git_odb_exists(push->repo->_odb, &spec->roid)) {
-				giterr_set(GITERR_REFERENCE, "Cannot push missing reference");
-				error = GIT_ENONFASTFORWARD;
-				goto on_error;
-			}
-
-			error = git_merge_base(&base, push->repo,
-					       &spec->loid, &spec->roid);
-			if (error == GIT_ENOTFOUND) {
-				giterr_set(GITERR_REFERENCE,
-					"Cannot push non-fastforwardable reference");
-				error = GIT_ENONFASTFORWARD;
-				goto on_error;
-			}
-
-			if ((!error && !git_oid_equal(&base, &spec->roid))) {
-				spec->spec_type = SPECTYPE_REJECTED;
-                spec_type = spec->spec_type;
-			}
-
-			if (error < 0)
-				goto on_error;
+			if (!git_oid_iszero(&spec->roid)) {
+                if (!git_odb_exists(push->repo->_odb, &spec->roid)) {
+                    giterr_set(GITERR_REFERENCE, "Cannot push missing reference");
+                    error = GIT_ENONFASTFORWARD;
+                    goto on_error;
+                }
+                
+                error = git_merge_base(&base, push->repo,
+                                       &spec->loid, &spec->roid);
+                if (error == GIT_ENOTFOUND) {
+                    giterr_set(GITERR_REFERENCE,
+                               "Cannot push non-fastforwardable reference");
+                    error = GIT_ENONFASTFORWARD;
+                    goto on_error;
+                }
+                
+                if ((!error && !git_oid_equal(&base, &spec->roid))) {
+                    spec->spec_type = SPECTYPE_REJECTED;
+                    spec_type = spec->spec_type;
+                }
+                
+                if (error < 0)
+                    goto on_error;
+            }
 		}
         
         if (spec_type != SPECTYPE_REJECTED && spec_type != SPECTYPE_UNCHANGED && git_revwalk_push(rw, &spec->loid) < 0)
@@ -573,12 +572,8 @@ static int filter_rejected_refs(git_push *push)
         }
     }
     
-    if (filtered_specs.length > 0) {
-        git_vector_free(&push->specs);
-        push->specs = filtered_specs;
-    } else {
-        git_vector_free(&filtered_specs);
-    }
+    git_vector_free(&push->specs);
+    push->specs = filtered_specs;
     
     return 0;
 }
