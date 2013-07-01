@@ -279,6 +279,28 @@ int git__strcasecmp(const char *a, const char *b)
 	return (tolower(*a) - tolower(*b));
 }
 
+int git__strcasesort_cmp(const char *a, const char *b)
+{
+	int cmp = 0;
+
+	while (*a && *b) {
+		if (*a != *b) {
+			if (tolower(*a) != tolower(*b))
+				break;
+			/* use case in sort order even if not in equivalence */
+			if (!cmp)
+				cmp = (int)(*(const uint8_t *)a) - (int)(*(const uint8_t *)b);
+		}
+
+		++a, ++b;
+	}
+
+	if (*a || *b)
+		return tolower(*a) - tolower(*b);
+
+	return cmp;
+}
+
 int git__strncmp(const char *a, const char *b, size_t sz)
 {
 	while (sz && *a && *b && *a == *b)
@@ -685,7 +707,9 @@ static int GIT_STDLIB_CALL git__qsort_r_glue_cmp(
 void git__qsort_r(
 	void *els, size_t nel, size_t elsize, git__sort_r_cmp cmp, void *payload)
 {
-#if defined(__MINGW32__) || defined(__OpenBSD__) || defined(AMIGA)
+#if defined(__MINGW32__) || defined(__OpenBSD__) || defined(AMIGA) || \
+	defined(__gnu_hurd__) || \
+	(__GLIBC__ == 2 && __GLIBC_MINOR__ < 8)
 	git__insertsort_r(els, nel, elsize, NULL, cmp, payload);
 #elif defined(GIT_WIN32)
 	git__qsort_r_glue glue = { cmp, payload };

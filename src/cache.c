@@ -66,9 +66,12 @@ void git_cache_dump_stats(git_cache *cache)
 
 int git_cache_init(git_cache *cache)
 {
-	cache->used_memory = 0;
+	memset(cache, 0, sizeof(*cache));
 	cache->map = git_oidmap_alloc();
-	git_mutex_init(&cache->lock);
+	if (git_mutex_init(&cache->lock)) {
+		giterr_set(GITERR_OS, "Failed to initialize cache mutex");
+		return -1;
+	}
 	return 0;
 }
 
@@ -102,9 +105,9 @@ void git_cache_clear(git_cache *cache)
 void git_cache_free(git_cache *cache)
 {
 	git_cache_clear(cache);
-
 	git_oidmap_free(cache->map);
 	git_mutex_free(&cache->lock);
+	git__memzero(cache, sizeof(*cache));
 }
 
 /* Called with lock */
@@ -173,6 +176,11 @@ static void *cache_store(git_cache *cache, git_cached_obj *entry)
 	khiter_t pos;
 
 	git_cached_obj_incref(entry);
+
+	if (!git_cache__enabled && cache->used_memory > 0) {
+		git_cache_clear(cache);
+		return entry;
+	}
 
 	if (!cache_should_store(entry->type, entry->size))
 		return entry;

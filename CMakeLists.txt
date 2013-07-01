@@ -14,7 +14,8 @@
 PROJECT(libgit2 C)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+# Add find modules to the path
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # Build options
 #
@@ -26,7 +27,8 @@ OPTION( BUILD_EXAMPLES		"Build library usage example apps"		OFF )
 OPTION( TAGS				"Generate tags"							OFF )
 OPTION( PROFILE				"Generate profiling information"		OFF )
 OPTION( ENABLE_TRACE		"Enables tracing support"				OFF )
-OPTION( SONAME_APPEND "Append the given string to the library's filename" OFF )
+OPTION( LIBGIT2_FILENAME	"Name of the produced binary" OFF )
+
 IF(MSVC)
 	# This option is only availalbe when building with MSVC. By default,
 	# libgit2 is build using the stdcall calling convention, as that's what
@@ -100,14 +102,22 @@ ELSE ()
 	IF (NOT AMIGA)
 		FIND_PACKAGE(OpenSSL)
 	ENDIF ()
-	FILE(GLOB SRC_HTTP deps/http-parser/*.c)
-	INCLUDE_DIRECTORIES(deps/http-parser)
+
+	FIND_PACKAGE(HTTP_Parser QUIET)
+	IF (HTTP_PARSER_FOUND AND HTTP_PARSER_VERSION_MAJOR EQUAL 2)
+		INCLUDE_DIRECTORIES(${HTTP_PARSER_INCLUDE_DIRS})
+		LINK_LIBRARIES(${HTTP_PARSER_LIBRARIES})
+	ELSE()
+		MESSAGE("http-parser was not found or is too old; using bundled 3rd-party sources.")
+		INCLUDE_DIRECTORIES(deps/http-parser)
+		FILE(GLOB SRC_HTTP deps/http-parser/*.c)
+	ENDIF()
 ENDIF()
 
 # Specify sha1 implementation
 IF (WIN32 AND NOT MINGW AND NOT SHA1_TYPE STREQUAL "builtin")
-    ADD_DEFINITIONS(-DWIN32_SHA1)
-    FILE(GLOB SRC_SHA1 src/hash/hash_win32.c)
+	ADD_DEFINITIONS(-DWIN32_SHA1)
+	FILE(GLOB SRC_SHA1 src/hash/hash_win32.c)
 ELSEIF (OPENSSL_FOUND AND NOT SHA1_TYPE STREQUAL "builtin")
 	ADD_DEFINITIONS(-DOPENSSL_SHA1)
 ELSE()
@@ -126,17 +136,15 @@ IF(WIN32 OR AMIGA)
 ENDIF()
 
 # Optional external dependency: zlib
-IF(NOT ZLIB_LIBRARY)
-	# It's optional, but FIND_PACKAGE gives a warning that looks more like an
-	# error.
-	FIND_PACKAGE(ZLIB QUIET)
-ENDIF()
+# It's optional, but FIND_PACKAGE gives a warning that looks more like an
+# error.
+FIND_PACKAGE(ZLIB QUIET)
 IF (ZLIB_FOUND)
 	INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 	LINK_LIBRARIES(${ZLIB_LIBRARIES})
 	# Fake the message CMake would have shown
 	MESSAGE("-- Found zlib: ${ZLIB_LIBRARY}")
-ELSEIF (NOT ZLIB_LIBRARY)
+ELSE()
 	MESSAGE( "zlib was not found; using bundled 3rd-party sources." )
 	INCLUDE_DIRECTORIES(deps/zlib)
 	ADD_DEFINITIONS(-DNO_VIZ -DSTDC -DNO_GZIP)
@@ -155,7 +163,7 @@ ENDIF()
 # Platform specific compilation flags
 IF (MSVC)
 
-    STRING(REPLACE "/Zm1000" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+	STRING(REPLACE "/Zm1000" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 	# /GF - String pooling
 	# /MP - Parallel build
@@ -170,7 +178,7 @@ IF (MSVC)
 		SET(CRT_FLAG_DEBUG "/MTd")
 		SET(CRT_FLAG_RELEASE "/MT")
 	ELSE()
-	    SET(CRT_FLAG_DEBUG "/MDd")
+		SET(CRT_FLAG_DEBUG "/MDd")
 		SET(CRT_FLAG_RELEASE "/MD")
 	ENDIF()
 
@@ -317,8 +325,9 @@ MSVC_SPLIT_SOURCES(git2)
 IF (SONAME)
 	SET_TARGET_PROPERTIES(git2 PROPERTIES VERSION ${LIBGIT2_VERSION_STRING})
 	SET_TARGET_PROPERTIES(git2 PROPERTIES SOVERSION ${LIBGIT2_VERSION_MAJOR})
-	IF (SONAME_APPEND)
-		SET_TARGET_PROPERTIES(git2 PROPERTIES OUTPUT_NAME "git2-${SONAME_APPEND}")
+	IF (LIBGIT2_FILENAME)
+		ADD_DEFINITIONS(-DLIBGIT2_FILENAME=\"${LIBGIT2_FILENAME}\")
+		SET_TARGET_PROPERTIES(git2 PROPERTIES OUTPUT_NAME ${LIBGIT2_FILENAME})
 	ENDIF()
 ENDIF()
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libgit2.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libgit2.pc @ONLY)

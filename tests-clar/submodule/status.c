@@ -370,18 +370,18 @@ void test_submodule_status__iterator(void)
 
 	cl_git_pass(git_iterator_for_workdir(&iter, g_repo,
 		GIT_ITERATOR_IGNORE_CASE | GIT_ITERATOR_INCLUDE_TREES, NULL, NULL));
-	cl_git_pass(git_iterator_current(&entry, iter));
 
-	for (i = 0; entry; ++i) {
+	for (i = 0; !git_iterator_advance(&entry, iter); ++i)
 		cl_assert_equal_s(expected[i], entry->path);
-		cl_git_pass(git_iterator_advance(&entry, iter));
-	}
 
 	git_iterator_free(iter);
 
-	opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_INCLUDE_UNMODIFIED | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
+	opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
+		GIT_STATUS_OPT_INCLUDE_UNMODIFIED |
+		GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
 
-	cl_git_pass(git_status_foreach_ext(g_repo, &opts, confirm_submodule_status, &exp));
+	cl_git_pass(git_status_foreach_ext(
+		g_repo, &opts, confirm_submodule_status, &exp));
 }
 
 void test_submodule_status__untracked_dirs_containing_ignored_files(void)

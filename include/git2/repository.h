@@ -519,7 +519,7 @@ typedef int (*git_repository_mergehead_foreach_cb)(const git_oid *oid,
  *
  * @param repo A repository object
  * @param callback Callback function
- * @param apyload Pointer to callback data (optional)
+ * @param payload Pointer to callback data (optional)
  * @return 0 on success, GIT_ENOTFOUND, GIT_EUSER or error
  */
 GIT_EXTERN(int) git_repository_mergehead_foreach(git_repository *repo,
@@ -656,6 +656,15 @@ GIT_EXTERN(int) git_repository_set_namespace(git_repository *repo, const char *n
  * @return the active namespace, or NULL if there isn't one
  */
 GIT_EXTERN(const char *) git_repository_get_namespace(git_repository *repo);
+
+
+/**
+ * Determine if the repository was a shallow clone
+ *
+ * @param repo The repository
+ * @return 1 if shallow, zero if not
+ */
+GIT_EXTERN(int) git_repository_is_shallow(git_repository *repo);
 
 /** @} */
 GIT_END_DECL

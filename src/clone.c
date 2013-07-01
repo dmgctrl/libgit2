@@ -21,6 +21,7 @@
 #include "fileops.h"
 #include "refs.h"
 #include "path.h"
+#include "repository.h"
 
 static int create_branch(
 	git_reference **branch,
@@ -241,7 +242,7 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 	}
 
 	/* Not master. Check all the other refs. */
-	if (git_reference_foreach(
+	if (git_reference_foreach_name(
 		repo,
 		reference_matches_remote_head,
 		&head_info) < 0)
@@ -336,6 +337,10 @@ static int create_and_configure_origin(
 	    (error = git_remote_set_pushurl(origin, options->pushurl)) < 0)
 		goto on_error;
 
+	if (options->transport_flags == GIT_TRANSPORTFLAGS_NO_CHECK_CERT) {
+        git_remote_check_cert(origin, 0);
+    }
+
 	if ((error = git_remote_save(origin)) < 0)
 		goto on_error;
 
@@ -422,7 +427,6 @@ static void normalize_options(git_clone_options *dst, const git_clone_options *s
 
 	/* Provide defaults for null pointers */
 	if (!dst->remote_name) dst->remote_name = "origin";
-	if (!dst->remote_autotag) dst->remote_autotag = GIT_REMOTE_DOWNLOAD_TAGS_AUTO;
 }
 
 int git_clone(

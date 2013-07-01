@@ -27,18 +27,37 @@ GIT_BEGIN_DECL
  * git_config_open_default() and git_repository_config() honor those
  * priority levels as well.
  */
-enum {
-	GIT_CONFIG_LEVEL_SYSTEM = 1,	/**< System-wide configuration file. */
-	GIT_CONFIG_LEVEL_XDG = 2,		/**< XDG compatible configuration file (.config/git/config). */
-	GIT_CONFIG_LEVEL_GLOBAL = 3,	/**< User-specific configuration file, also called Global configuration file. */
-	GIT_CONFIG_LEVEL_LOCAL = 4,		/**< Repository specific configuration file. */
-	GIT_CONFIG_HIGHEST_LEVEL = -1,	/**< Represents the highest level of a config file. */
-};
+typedef enum {
+	/** System-wide configuration file; /etc/gitconfig on Linux systems */
+	GIT_CONFIG_LEVEL_SYSTEM = 1,
+
+	/** XDG compatible configuration file; typically ~/.config/git/config */
+	GIT_CONFIG_LEVEL_XDG = 2,
+
+	/** User-specific configuration file (also called Global configuration
+	 * file); typically ~/.gitconfig
+	 */
+	GIT_CONFIG_LEVEL_GLOBAL = 3,
+
+	/** Repository specific configuration file; $WORK_DIR/.git/config on
+	 * non-bare repos
+	 */
+	GIT_CONFIG_LEVEL_LOCAL = 4,
+
+	/** Application specific configuration file; freely defined by applications
+	 */
+	GIT_CONFIG_LEVEL_APP = 5,
+
+	/** Represents the highest level available config file (i.e. the most
+	 * specific config file available that actually is loaded)
+	 */
+	GIT_CONFIG_HIGHEST_LEVEL = -1,
+} git_config_level_t;
 
 typedef struct {
 	const char *name;
 	const char *value;
-	unsigned int level;
+	git_config_level_t level;
 } git_config_entry;
 
 typedef int  (*git_config_foreach_cb)(const git_config_entry *, void *);
@@ -100,7 +119,7 @@ GIT_EXTERN(int) git_config_find_xdg(char *out, size_t length);
  * If /etc/gitconfig doesn't exist, it will look for
  * %PROGRAMFILES%\Git\etc\gitconfig.
 
- * @param global_config_path Buffer to store the path in
+ * @param out Buffer to store the path in
  * @param length size of the buffer in bytes
  * @return 0 if a system configuration file has been
  *	found. Its path will be stored in `buffer`.
@@ -155,7 +174,7 @@ GIT_EXTERN(int) git_config_new(git_config **out);
 GIT_EXTERN(int) git_config_add_file_ondisk(
 	git_config *cfg,
 	const char *path,
-	unsigned int level,
+	git_config_level_t level,
 	int force);
 
 /**
@@ -192,7 +211,7 @@ GIT_EXTERN(int) git_config_open_ondisk(git_config **out, const char *path);
 GIT_EXTERN(int) git_config_open_level(
 	git_config **out,
 	const git_config *parent,
-	unsigned int level);
+	git_config_level_t level);
 
 /**
  * Open the global/XDG configuration file according to git's rules
@@ -241,7 +260,7 @@ GIT_EXTERN(void) git_config_free(git_config *cfg);
  * @return 0 or an error code
  */
 GIT_EXTERN(int) git_config_get_entry(
-   const git_config_entry **out,
+	const git_config_entry **out,
 	const git_config *cfg,
 	const char *name);
 
@@ -316,8 +335,8 @@ GIT_EXTERN(int) git_config_get_string(const char **out, const git_config *cfg, c
  * @param name the variable's name
  * @param regexp regular expression to filter which variables we're
  * interested in. Use NULL to indicate all
- * @param fn the function to be called on each value of the variable
- * @param data opaque pointer to pass to the callback
+ * @param callback the function to be called on each value of the variable
+ * @param payload opaque pointer to pass to the callback
  */
 GIT_EXTERN(int) git_config_get_multivar(const git_config *cfg, const char *name, const char *regexp, git_config_foreach_cb callback, void *payload);
 

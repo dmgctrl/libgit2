@@ -109,6 +109,13 @@ GIT_INLINE(int) git__is_sizet(git_off_t p)
 	return p == (git_off_t)r;
 }
 
+/** @return true if p fits into the range of a uint32_t */
+GIT_INLINE(int) git__is_uint32(size_t p)
+{
+	uint32_t r = (uint32_t)p;
+	return p == (size_t)r;
+}
+
 /* 32-bit cross-platform rotl */
 #ifdef _MSC_VER /* use built-in method in MSVC */
 #	define git__rotl(v, s) (uint32_t)_rotl(v, s)
@@ -186,6 +193,10 @@ extern int git__strcmp(const char *a, const char *b);
 extern int git__strcasecmp(const char *a, const char *b);
 extern int git__strncmp(const char *a, const char *b, size_t sz);
 extern int git__strncasecmp(const char *a, const char *b, size_t sz);
+
+extern int git__strcasesort_cmp(const char *a, const char *b);
+
+#include "thread-utils.h"
 
 typedef struct {
 	git_atomic refcount;
@@ -286,8 +297,7 @@ GIT_INLINE(bool) git__iswildcard(int c)
 }
 
 /*
- * Parse a string value as a boolean, just like Core Git
- * does.
+ * Parse a string value as a boolean, just like Core Git does.
  *
  * Valid values for true are: 'true', 'yes', 'on'
  * Valid values for false are: 'false', 'no', 'off'
@@ -302,7 +312,7 @@ extern int git__parse_bool(int *out, const char *value);
  * - "July 17, 2003"
  * - "2003-7-17 08:23"
  */
-int git__date_parse(git_time_t *out, const char *date);
+extern int git__date_parse(git_time_t *out, const char *date);
 
 /*
  * Unescapes a string in-place.
@@ -312,5 +322,21 @@ int git__date_parse(git_time_t *out, const char *date);
  * - "chan\\" -> "chan\"
  */
 extern size_t git__unescape(char *str);
+
+/*
+ * Safely zero-out memory, making sure that the compiler
+ * doesn't optimize away the operation.
+ */
+GIT_INLINE(void) git__memzero(void *data, size_t size)
+{
+#ifdef _MSC_VER
+	SecureZeroMemory((PVOID)data, size);
+#else
+	volatile uint8_t *scan = (volatile uint8_t *)data;
+
+	while (size--)
+		*scan++ = 0x0;
+#endif
+}
 
 #endif /* INCLUDE_util_h__ */
