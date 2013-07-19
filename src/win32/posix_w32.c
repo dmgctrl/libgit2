@@ -5,6 +5,7 @@
  * a Linking Exception. For full terms see the included COPYING file.
  */
 #include "../posix.h"
+#include "../fileops.h"
 #include "path.h"
 #include "utf-conv.h"
 #include "repository.h"
@@ -88,6 +89,9 @@ static int do_lstat(
 
 		if (fdata.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
 			fMode |= S_IFLNK;
+
+		if ((fMode & (S_IFDIR | S_IFLNK)) == (S_IFDIR | S_IFLNK)) // junction
+			fMode ^= S_IFLNK;
 
 		buf->st_ino = 0;
 		buf->st_gid = 0;

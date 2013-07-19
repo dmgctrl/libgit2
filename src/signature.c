@@ -9,6 +9,7 @@
 #include "signature.h"
 #include "repository.h"
 #include "git2/common.h"
+#include "posix.h"
 
 void git_signature_free(git_signature *sig)
 {
@@ -35,11 +36,11 @@ static bool contains_angle_brackets(const char *input)
 
 static char *extract_trimmed(const char *ptr, size_t len)
 {
-	while (len && ptr[0] == ' ') {
+	while (len && git__isspace(ptr[0])) {
 		ptr++; len--;
 	}
 
-	while (len && ptr[len - 1] == ' ') {
+	while (len && git__isspace(ptr[len - 1])) {
 		len--;
 	}
 
@@ -174,8 +175,10 @@ int git_signature__parse(git_signature *sig, const char **buffer_out,
 			tz_start = time_end + 1;
 
 			if ((tz_start[0] != '-' && tz_start[0] != '+') ||
-				git__strtol32(&offset, tz_start + 1, &tz_end, 10) < 0)
-				return signature_error("malformed timezone");
+				git__strtol32(&offset, tz_start + 1, &tz_end, 10) < 0) {
+				//malformed timezone, just assume it's zero
+				offset = 0;
+			}
 
 			hours = offset / 100;
 			mins = offset % 100;

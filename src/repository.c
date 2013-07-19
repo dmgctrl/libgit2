@@ -17,12 +17,15 @@
 #include "tag.h"
 #include "blob.h"
 #include "fileops.h"
+#include "filebuf.h"
+#include "index.h"
 #include "config.h"
 #include "refs.h"
 #include "filter.h"
 #include "odb.h"
 #include "remote.h"
 #include "merge.h"
+#include "diff_driver.h"
 
 #define GIT_FILE_CONTENT_PREFIX "gitdir:"
 
@@ -109,10 +112,14 @@ void git_repository_free(git_repository *repo)
 	git_cache_free(&repo->objects);
 	git_submodule_config_free(repo);
 
+	git_diff_driver_registry_free(repo->diff_drivers);
+	repo->diff_drivers = NULL;
+
 	git__free(repo->path_repository);
 	git__free(repo->workdir);
 	git__free(repo->namespace);
 
+	git__memzero(repo, sizeof(*repo));
 	git__free(repo);
 }
 
@@ -139,11 +146,9 @@ static bool valid_repository_path(git_buf *repository_path)
 
 static git_repository *repository_alloc(void)
 {
-	git_repository *repo = git__malloc(sizeof(git_repository));
+	git_repository *repo = git__calloc(1, sizeof(git_repository));
 	if (!repo)
 		return NULL;
-
-	memset(repo, 0x0, sizeof(git_repository));
 
 	if (git_cache_init(&repo->objects) < 0) {
 		git__free(repo);
@@ -1473,12 +1478,14 @@ static int at_least_one_cb(const char *refname, void *payload)
 
 static int repo_contains_no_reference(git_repository *repo)
 {
-	int error = git_reference_foreach(repo, at_least_one_cb, NULL);
+	int error = git_reference_foreach_name(repo, &at_least_one_cb, NULL);
 
 	if (error == GIT_EUSER)
 		return 0;
+
 	if (!error)
 		return 1;
+
 	return error;
 }
 
@@ -1821,4 +1828,21 @@ int git_repository_state(git_repository *repo)
 
 	git_buf_free(&repo_path);
 	return state;
+}
+
+int git_repository_is_shallow(git_repository *repo)
+{
+	git_buf path = GIT_BUF_INIT;
+	struct stat st;
+	int error;
+
+	git_buf_joinpath(&path, repo->path_repository, "shallow");
+	error = git_path_lstat(path.ptr, &st);
+	git_buf_free(&path);
+
+	if (error == GIT_ENOTFOUND)
+		return 0;
+	if (error < 0)
+		return -1;
+	return st.st_size == 0 ? 0 : 1;
 }

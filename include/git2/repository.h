@@ -178,7 +178,7 @@ GIT_EXTERN(int) git_repository_init(
  * when initializing a new repo.  Details of individual values are:
  *
  * * BARE   - Create a bare repository with no working directory.
- * * NO_REINIT - Return an EEXISTS error if the repo_path appears to
+ * * NO_REINIT - Return an GIT_EEXISTS error if the repo_path appears to
  *        already be an git repository.
  * * NO_DOTGIT_DIR - Normally a "/.git/" will be appended to the repo
  *        path for non-bare repos (if it is not already there), but
@@ -519,7 +519,7 @@ typedef int (*git_repository_mergehead_foreach_cb)(const git_oid *oid,
  *
  * @param repo A repository object
  * @param callback Callback function
- * @param apyload Pointer to callback data (optional)
+ * @param payload Pointer to callback data (optional)
  * @return 0 on success, GIT_ENOTFOUND, GIT_EUSER or error
  */
 GIT_EXTERN(int) git_repository_mergehead_foreach(git_repository *repo,
@@ -601,7 +601,7 @@ GIT_EXTERN(int) git_repository_set_head_detached(
  * If the HEAD is already detached and points to a Tag, the HEAD is
  * updated into making it point to the peeled Commit, and 0 is returned.
  *
- * If the HEAD is already detached and points to a non commitish, the HEAD is 
+ * If the HEAD is already detached and points to a non commitish, the HEAD is
  * unaltered, and -1 is returned.
  *
  * Otherwise, the HEAD will be detached and point to the peeled Commit.
@@ -656,6 +656,15 @@ GIT_EXTERN(int) git_repository_set_namespace(git_repository *repo, const char *n
  * @return the active namespace, or NULL if there isn't one
  */
 GIT_EXTERN(const char *) git_repository_get_namespace(git_repository *repo);
+
+
+/**
+ * Determine if the repository was a shallow clone
+ *
+ * @param repo The repository
+ * @return 1 if shallow, zero if not
+ */
+GIT_EXTERN(int) git_repository_is_shallow(git_repository *repo);
 
 /** @} */
 GIT_END_DECL

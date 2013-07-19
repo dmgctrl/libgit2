@@ -22,6 +22,8 @@
 #include "submodule.h"
 #include "tree.h"
 #include "iterator.h"
+#include "path.h"
+#include "index.h"
 
 #define GIT_MODULES_FILE ".gitmodules"
 
@@ -149,7 +151,7 @@ int git_submodule_foreach(
 	int error;
 	git_submodule *sm;
 	git_vector seen = GIT_VECTOR_INIT;
-	seen._cmp = submodule_cmp;
+	git_vector_set_cmp(&seen, submodule_cmp);
 
 	assert(repo && callback);
 
@@ -1143,9 +1145,7 @@ static int load_submodule_config_from_index(
 		(error = git_iterator_for_index(&i, index, 0, NULL, NULL)) < 0)
 		return error;
 
-	error = git_iterator_current(&entry, i);
-
-	while (!error && entry != NULL) {
+	while (!(error = git_iterator_advance(&entry, i))) {
 
 		if (S_ISGITLINK(entry->mode)) {
 			error = submodule_load_from_index(repo, entry);
@@ -1158,9 +1158,10 @@ static int load_submodule_config_from_index(
 			if (strcmp(entry->path, GIT_MODULES_FILE) == 0)
 				git_oid_cpy(gitmodules_oid, &entry->oid);
 		}
-
-		error = git_iterator_advance(&entry, i);
 	}
+
+	if (error == GIT_ITEROVER)
+		error = 0;
 
 	git_iterator_free(i);
 
@@ -1175,17 +1176,18 @@ static int load_submodule_config_from_head(
 	git_iterator *i;
 	const git_index_entry *entry;
 
-	if ((error = git_repository_head_tree(&head, repo)) < 0)
-		return error;
+	/* if we can't look up current head, then there's no submodule in it */
+	if (git_repository_head_tree(&head, repo) < 0) {
+		giterr_clear();
+		return 0;
+	}
 
 	if ((error = git_iterator_for_tree(&i, head, 0, NULL, NULL)) < 0) {
 		git_tree_free(head);
 		return error;
 	}
 
-	error = git_iterator_current(&entry, i);
-
-	while (!error && entry != NULL) {
+	while (!(error = git_iterator_advance(&entry, i))) {
 
 		if (S_ISGITLINK(entry->mode)) {
 			error = submodule_load_from_head(repo, entry->path, &entry->oid);
@@ -1199,9 +1201,10 @@ static int load_submodule_config_from_head(
 				git_oid_iszero(gitmodules_oid))
 				git_oid_cpy(gitmodules_oid, &entry->oid);
 		}
-
-		error = git_iterator_advance(&entry, i);
 	}
+
+	if (error == GIT_ITEROVER)
+		error = 0;
 
 	git_iterator_free(i);
 	git_tree_free(head);

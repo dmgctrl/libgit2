@@ -48,11 +48,7 @@ static int download_tags_value(git_remote *remote, git_config *cfg)
 	git_buf buf = GIT_BUF_INIT;
 	int error;
 
-	if (remote->download_tags != GIT_REMOTE_DOWNLOAD_TAGS_UNSET)
-		return 0;
-
-	/* This is the default, let's see if we need to change it */
-	remote->download_tags = GIT_REMOTE_DOWNLOAD_TAGS_AUTO;
+	/* The 0 value is the default (auto), let's see if we need to change it */
 	if (git_buf_printf(&buf, "remote.%s.tagopt", remote->name) < 0)
 		return -1;
 
@@ -117,10 +113,9 @@ static int create_internal(git_remote **out, git_repository *repo, const char *n
 			goto on_error;
 	}
 
-	/* A remote without a name doesn't download tags */
-	if (!name) {
+	if (!name)
+		/* A remote without a name doesn't download tags */
 		remote->download_tags = GIT_REMOTE_DOWNLOAD_TAGS_NONE;
-	}
 
 	*out = remote;
 	git_buf_free(&fetchbuf);
@@ -245,7 +240,6 @@ int git_remote_load(git_remote **out, git_repository *repo, const char *name)
 	int error = 0;
 	git_config *config;
 	struct refspec_cb_data data;
-
 
 	assert(out && repo && name);
 
@@ -1239,31 +1233,23 @@ static int update_branch_remote_config_entry(
 }
 
 static int rename_one_remote_reference(
-	git_repository *repo,
-	const char *reference_name,
+	git_reference *reference,
 	const char *old_remote_name,
 	const char *new_remote_name)
 {
 	int error = -1;
 	git_buf new_name = GIT_BUF_INIT;
-	git_reference *reference = NULL;
-	git_reference *newref = NULL;
 
 	if (git_buf_printf(
 		&new_name,
 		GIT_REFS_REMOTES_DIR "%s%s",
 		new_remote_name,
-		reference_name + strlen(GIT_REFS_REMOTES_DIR) + strlen(old_remote_name)) < 0)
+		reference->name + strlen(GIT_REFS_REMOTES_DIR) + strlen(old_remote_name)) < 0)
 			return -1;
 
-	if (git_reference_lookup(&reference, repo, reference_name) < 0)
-		goto cleanup;
-
-	error = git_reference_rename(&newref, reference, git_buf_cstr(&new_name), 0);
+	error = git_reference_rename(NULL, reference, git_buf_cstr(&new_name), 0);
 	git_reference_free(reference);
 
-cleanup:
-	git_reference_free(newref);
 	git_buf_free(&new_name);
 	return error;
 }
@@ -1273,46 +1259,30 @@ static int rename_remote_references(
 	const char *old_name,
 	const char *new_name)
 {
-	git_vector refnames;
 	int error = -1;
-	unsigned int i;
-	char *name;
-	const char *refname;
+	git_reference *ref;
 	git_reference_iterator *iter;
 
-	if (git_vector_init(&refnames, 8, NULL) < 0)
+	if (git_reference_iterator_new(&iter, repo) < 0)
 		return -1;
 
-	if (git_reference_iterator_new(&iter, repo) < 0)
-		goto cleanup;
-
-	while ((error = git_reference_next(&refname, iter)) == 0) {
-		if (git__prefixcmp(refname, GIT_REFS_REMOTES_DIR))
+	while ((error = git_reference_next(&ref, iter)) == 0) {
+		if (git__prefixcmp(ref->name, GIT_REFS_REMOTES_DIR)) {
+			git_reference_free(ref);
 			continue;
+		}
 
-		if ((error = git_vector_insert(&refnames, git__strdup(refname))) < 0)
-			break;
-
+		if ((error = rename_one_remote_reference(ref, old_name, new_name)) < 0) {
+			git_reference_iterator_free(iter);
+			return error;
+		}
 	}
 
 	git_reference_iterator_free(iter);
+
 	if (error == GIT_ITEROVER)
-		error = 0;
-	else
-		goto cleanup;
+		return 0;
 
-	git_vector_foreach(&refnames, i, name) {
-		if ((error = rename_one_remote_reference(repo, name, old_name, new_name)) < 0)
-			goto cleanup;
-	}
-
-	error = 0;
-cleanup:
-	git_vector_foreach(&refnames, i, name) {
-		git__free(name);
-	}
-
-	git_vector_free(&refnames);
 	return error;
 }
 
