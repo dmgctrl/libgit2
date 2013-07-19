@@ -185,12 +185,12 @@ static int update_index_cb(
 
 	case GIT_DELTA_ADDED:
 	case GIT_DELTA_MODIFIED:
-		if (data->include_changed)
+		if (data->include_changed && !S_ISGITLINK(delta->new_file.mode))
 			add_path = delta->new_file.path;
 		break;
 
 	case GIT_DELTA_DELETED:
-		if (!data->include_changed)
+		if (!data->include_changed || S_ISGITLINK(delta->new_file.mode))
 			break;
 		if (git_index_find(NULL, data->index, delta->old_file.path) == 0)
 			data->error = git_index_remove(
